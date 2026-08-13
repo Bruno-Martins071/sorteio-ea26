@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorteio EA FC 26 — Rachão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Rachão · FC 26</div>
+    <h1>Sorteio de times</h1>
+    <p class="sub">Cadastre a galera, ajusta a formação e deixa o sorteio montar os times pelo overall — sem ninguém repetido, do jeito que dá pra jogar o par ou ímpar sem brigar.</p>
+  </header>
+
+  <!-- 1. Participantes -->
+  <section class="panel">
+    <h2><span class="num">1</span>Participantes <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">(máx. 5)</span></h2>
+    <div class="row">
+      <input type="text" id="participantInput" placeholder="Nome do participante" maxlength="20">
+      <button class="btn-primary" id="addParticipantBtn">Adicionar</button>
+    </div>
+    <div class="chips" id="participantChips"></div>
+    <div class="empty-hint" id="participantHint">Adicione pelo menos 2 participantes pra sortear.</div>
+  </section>
+
+  <!-- 2. Formação -->
+  <section class="panel">
+    <h2><span class="num">2</span>Formação de cada time</h2>
+    <div class="formation-grid">
+      <div class="f-field">
+        <label>Gol</label>
+        <input type="number" id="f-GOL" min="0" max="3" value="1">
+        <div class="pool-count" id="pc-GOL"></div>
+      </div>
+      <div class="f-field">
+        <label>Zagueiros</label>
+        <input type="number" id="f-ZAG" min="0" max="4" value="2">
+        <div class="pool-count" id="pc-ZAG"></div>
+      </div>
+      <div class="f-field">
+        <label>Laterais</label>
+        <input type="number" id="f-LAT" min="0" max="4" value="2">
+        <div class="pool-count" id="pc-LAT"></div>
+      </div>
+      <div class="f-field">
+        <label>Meias</label>
+        <input type="number" id="f-MEI" min="0" max="5" value="3">
+        <div class="pool-count" id="pc-MEI"></div>
+      </div>
+      <div class="f-field">
+        <label>Atacantes</label>
+        <input type="number" id="f-ATA" min="0" max="5" value="3">
+        <div class="pool-count" id="pc-ATA"></div>
+      </div>
+      <div class="f-field">
+        <label>Reservas</label>
+        <input type="number" id="f-RES" min="0" max="10" value="5">
+        <div class="pool-count" id="pc-RES">qualquer posição</div>
+      </div>
+    </div>
+    <div class="formation-total">
+      <span>Jogadores por time: <b id="perTeamTotal">16</b></span>
+      <span>Total no sorteio: <b id="grandTotal">--</b></span>
+    </div>
+  </section>
+
+  <!-- 3. Banco de jogadores -->
+  <section class="panel">
+    <details>
+      <summary><span class="arrow">▸</span> Banco de jogadores (editar / adicionar)</summary>
+      <div class="pool-body">
+        <div class="pool-counts" id="poolCounts"></div>
+        <div class="add-player-row">
+          <div class="f-mini" style="flex:1;min-width:140px;">
+            <label>Nome</label>
+            <input type="text" id="newPlayerName" placeholder="Ex: Vitor Roque" style="width:100%;">
+          </div>
+          <div class="f-mini" style="min-width:110px;">
+            <label>Posição</label>
+            <select id="newPlayerPos" style="width:100%;">
+              <option value="GOL">GOL</option>
+              <option value="ZAG">ZAG</option>
+              <option value="LAT">LAT</option>
+              <option value="MEI">MEI</option>
+              <option value="ATA">ATA</option>
+            </select>
+          </div>
+          <div class="f-mini" style="width:70px;">
+            <label>OVR</label>
+            <input type="number" id="newPlayerOvr" min="40" max="99" value="80" style="width:100%;">
+          </div>
+          <div class="f-mini" style="flex:1;min-width:120px;">
+            <label>Clube (opcional)</label>
+            <input type="text" id="newPlayerClub" placeholder="Clube" style="width:100%;">
+          </div>
+          <button class="btn-ghost" id="addPlayerBtn">+ Adicionar</button>
+        </div>
+        <div id="customPlayerList"></div>
+      </div>
+    </details>
+  </section>
+
+  <!-- 4. Ordem -->
+  <section class="panel">
+    <h2><span class="num">3</span>Ordem de escolha</h2>
+    <p class="sub" style="margin:0 0 6px;">Bate o par ou ímpar digital pra definir quem escolhe primeiro. O sorteio segue essa ordem em formato cobrinha (1-2-3, depois 3-2-1...) entregando sempre o melhor overall disponível da posição pra quem estiver na vez.</p>
+    <button class="btn-ghost" id="rollOrderBtn">🎲 Sortear ordem</button>
+    <div class="order-display" id="orderDisplay"></div>
+  </section>
+
+  <!-- 5. Sorteio -->
+  <section class="panel">
+    <h2><span class="num">4</span>Sorteio</h2>
+    <div class="actions">
+      <button class="btn-primary" id="drawBtn">⚽ Sortear times</button>
+      <button class="btn-danger-ghost" id="resetResultsBtn" style="display:none;">Refazer sorteio</button>
+    </div>
+    <div id="drawStatus"></div>
+  </section>
+
+  <section id="resultsSection" style="display:none;">
+    <div class="results-grid" id="resultsGrid"></div>
+  </section>
+
+  <footer>Feito pra facilitar o rachão — os overalls são aproximados (FC26) e o banco pode ser editado à vontade.</footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
