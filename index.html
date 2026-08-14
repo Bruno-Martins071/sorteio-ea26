@@ -100,6 +100,15 @@
           <button class="btn-ghost" id="addPlayerBtn">+ Adicionar</button>
         </div>
         <div id="customPlayerList"></div>
+        <div class="forbidden-groups">
+          <h3 style="margin-top:12px;margin-bottom:6px;font-size:0.95rem;">Regras: jogadores que não podem ficar juntos</h3>
+          <textarea id="forbiddenGroupsInput" placeholder="Cada linha = um grupo proibido. Separe nomes por vírgula.\nEx: Kylian Mbappé, Vini Jr., Lamine Yamal" style="width:100%;height:70px;margin-bottom:6px;font-size:0.9rem;"></textarea>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-ghost" id="saveForbiddenBtn">Salvar regras</button>
+            <button class="btn-ghost" id="exampleForbiddenBtn">Exemplo: Mbappé / Vini / Yamal</button>
+            <div style="color:var(--muted);font-size:0.85rem;">Use nomes exatamente como estão no banco.</div>
+          </div>
+        </div>
       </div>
     </details>
   </section>

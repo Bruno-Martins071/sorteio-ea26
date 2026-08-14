@@ -279,6 +279,58 @@ function renderCustomPlayerList(){
   });
 }
 
+
+/* ---------- Regras: jogadores que não podem ficar juntos ---------- */
+let forbiddenGroups = [];
+
+function parseForbiddenGroups(text){
+  return text.split('\n').map(line=>{
+    return line.split(',').map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
+  }).filter(g=>g.length>0);
+}
+
+function loadForbiddenGroups(){
+  try{
+    const txt = localStorage.getItem('sorteioFC26Forbidden') || '';
+    forbiddenGroups = parseForbiddenGroups(txt);
+    const el = document.getElementById('forbiddenGroupsInput');
+    if(el) el.value = txt;
+  }catch(e){ console.warn('Erro ao carregar regras proibidas', e); }
+}
+
+function saveForbiddenGroups(){
+  try{
+    const el = document.getElementById('forbiddenGroupsInput');
+    const txt = el ? el.value : '';
+    localStorage.setItem('sorteioFC26Forbidden', txt);
+    forbiddenGroups = parseForbiddenGroups(txt);
+  }catch(e){ console.warn('Erro ao salvar regras proibidas', e); }
+}
+
+function violatesForbidden(teamPlayers, candidate){
+  if(!forbiddenGroups || forbiddenGroups.length===0) return false;
+  const teamNames = new Set(teamPlayers.map(p=>p.name.toLowerCase()));
+  const can = candidate.name.toLowerCase();
+  for(const g of forbiddenGroups){
+    if(g.includes(can)){
+      for(const member of g){ if(teamNames.has(member)) return true; }
+    }
+  }
+  return false;
+}
+
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'saveForbiddenBtn'){
+    saveForbiddenGroups();
+    const s = document.getElementById('drawStatus');
+    if(s) { s.textContent = 'Regras salvas.'; setTimeout(()=> s.textContent = '', 1200); }
+  }
+  if(e.target && e.target.id === 'exampleForbiddenBtn'){
+    const el = document.getElementById('forbiddenGroupsInput');
+    if(el){ el.value = 'Kylian Mbappé, Vini Jr., Lamine Yamal'; }
+  }
+});
+
 document.getElementById('addPlayerBtn').addEventListener('click', ()=>{
   const name = document.getElementById('newPlayerName').value.trim();
   const pos = document.getElementById('newPlayerPos').value;
@@ -371,46 +423,72 @@ document.getElementById('drawBtn').addEventListener('click', ()=>{
     return;
   }
 
-  // montar squads
-  const squads = {};
-  draftOrder.forEach(name=> squads[name] = {GOL:[],ZAG:[],LAT:[],MEI:[],ATA:[],RES:[]});
+  // montar squads — tentativas para respeitar regras proibidas (se houver)
+  function tryAllocate(maxAttempts = 2000){
+    const key = p => p.name+'|'+p.pos+'|'+p.ovr;
+    for(let attempt=0; attempt<maxAttempts; attempt++){
+      const squadsTry = {};
+      draftOrder.forEach(name=> squadsTry[name] = {GOL:[],ZAG:[],LAT:[],MEI:[],ATA:[],RES:[]});
+      const usedTry = new Set();
+      let failed = false;
 
-  const used = new Set();
-  const key = p => p.name+'|'+p.pos+'|'+p.ovr;
+      const snakeOrder = (round) => round % 2 === 0 ? draftOrder : [...draftOrder].reverse();
 
-  function snakeOrder(round){
-    return round % 2 === 0 ? draftOrder : [...draftOrder].reverse();
-  }
-
-  POS_ORDER.forEach(pos=>{
-    const rounds = f[pos];
-    if(rounds===0) return;
-    // melhores primeiro, dentro da posição
-    const availableForPos = sortByOverallDesc(all.filter(pl=> pl.pos===pos && !used.has(key(pl))));
-    let idx = 0;
-    for(let r=0; r<rounds; r++){
-      const seq = snakeOrder(r);
-      for(const name of seq){
-        const player = availableForPos[idx++];
-        used.add(key(player));
-        squads[name][pos].push(player);
+      for(const pos of POS_ORDER){
+        const rounds = f[pos];
+        if(rounds===0) continue;
+        const availableForPos = sortByOverallDesc(all.filter(pl=> pl.pos===pos));
+        for(let r=0; r<rounds; r++){
+          const seq = snakeOrder(r);
+          for(const name of seq){
+            let chosen = null;
+            for(const player of availableForPos){
+              if(usedTry.has(key(player))) continue;
+              if(violatesForbidden(squadsTry[name][pos].concat(...Object.values(squadsTry[name]).flat()), player)) continue;
+              chosen = player; break;
+            }
+            if(!chosen){ failed = true; break; }
+            usedTry.add(key(chosen));
+            squadsTry[name][pos].push(chosen);
+          }
+          if(failed) break;
+        }
+        if(failed) break;
       }
-    }
-  });
+      if(failed) continue;
 
-  // reservas: qualquer posição, também priorizando overall entre quem sobrou
-  const leftover = sortByOverallDesc(all.filter(pl=> !used.has(key(pl))));
-  let ridx = 0;
-  for(let r=0; r<f.RES; r++){
-    const seq = snakeOrder(r);
-    for(const name of seq){
-      const player = leftover[ridx++];
-      used.add(key(player));
-      squads[name].RES.push(player);
+      // reservas
+      const leftover = sortByOverallDesc(all.filter(pl=> !usedTry.has(key(pl))));
+      for(let r=0; r<f.RES; r++){
+        const seq = snakeOrder(r);
+        for(const name of seq){
+          let chosen = null;
+          for(const player of leftover){
+            if(usedTry.has(key(player))) continue;
+            if(violatesForbidden([].concat(...Object.values(squadsTry[name])), player)) continue;
+            chosen = player; break;
+          }
+          if(!chosen){ failed = true; break; }
+          usedTry.add(key(chosen));
+          squadsTry[name].RES.push(chosen);
+        }
+        if(failed) break;
+      }
+      if(failed) continue;
+
+      return squadsTry;
     }
+    return null;
   }
 
-  state.results = { order: draftOrder, squads, formation: f };
+  const finalSquads = tryAllocate(2000);
+  if(!finalSquads){
+    status.textContent = 'Não foi possível montar times respeitando as regras. Tente ajustar a formação, banco ou as regras.';
+    status.className = 'error';
+    return;
+  }
+
+  state.results = { order: draftOrder, squads: finalSquads, formation: f };
   status.textContent = 'Sorteio concluído!';
   status.className = '';
   renderResults();
@@ -464,6 +542,7 @@ function renderResults(){
 
 /* ---------- Init ---------- */
 loadState();
+loadForbiddenGroups();
 renderParticipants();
 renderOrder();
 renderPoolCounts();
